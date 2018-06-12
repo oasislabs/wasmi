@@ -84,7 +84,7 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 			if !function_context.is_initialized() {
 				let return_type = function_context.return_type;
 				function_context.initialize(&function_body.locals);
-				function_context.push_frame(&function_body.labels, BlockFrameType::Function, return_type).map_err(Trap::new)?;
+				function_context.push_frame(BlockFrameType::Function, return_type).map_err(Trap::new)?;
 			}
 
 			let function_return = self.do_run_function(&mut function_context, function_body.opcodes.elements(), &function_body.labels).map_err(Trap::new)?;
@@ -127,7 +127,7 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 		}
 	}
 
-	fn do_run_function(&mut self, function_context: &mut FunctionContext, function_body: &[Opcode], function_labels: &HashMap<usize, usize>) -> Result<RunResult, TrapKind> {
+	fn do_run_function(&mut self, function_context: &mut FunctionContext, function_body: &[Opcode]) -> Result<RunResult, TrapKind> {
 		loop {
 			let instruction = &function_body[function_context.position];
 
@@ -400,7 +400,7 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 		Ok(InstructionOutcome::RunNextInstruction)
 	}
 
-	fn run_else(&mut self, context: &mut FunctionContext, labels: &HashMap<usize, usize>) -> Result<InstructionOutcome, TrapKind> {
+	fn run_else(&mut self, context: &mut FunctionContext) -> Result<InstructionOutcome, TrapKind> {
 		let end_pos = labels[&context.position];
 		context.pop_frame(false)?;
 		context.position = end_pos;
@@ -1144,7 +1144,7 @@ impl FunctionContext {
 		&self.frame_stack
 	}
 
-	pub fn push_frame(&mut self, labels: &HashMap<usize, usize>, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), TrapKind> {
+	pub fn push_frame(&mut self, frame_type: BlockFrameType, block_type: BlockType) -> Result<(), TrapKind> {
 		let begin_position = self.position;
 		let branch_position = match frame_type {
 			BlockFrameType::Function => usize::MAX,
