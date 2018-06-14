@@ -6,3 +6,6 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 [dependencies]
 wasmi = { path = ".." }
 assert_matches = "1.2"
+
+[profile.bench]
+debug = true
