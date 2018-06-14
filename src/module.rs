@@ -291,7 +291,7 @@ impl ModuleInstance {
 			}
 		}
 
-		let labels = loaded_module.labels();
+		let code = loaded_module.code();
 		{
 			let funcs = module.function_section().map(|fs| fs.entries()).unwrap_or(
 				&[],
@@ -308,13 +308,12 @@ impl ModuleInstance {
 				let signature = instance.signature_by_index(ty.type_ref()).expect(
 					"Due to validation type should exists",
 				);
-				let labels = labels.get(&index).expect(
+				let code = code.get(index).expect(
 					"At func validation time labels are collected; Collected labels are added by index; qed",
 				).clone();
 				let func_body = FuncBody {
 					locals: body.locals().to_vec(),
-					opcodes: body.code().clone(),
-					labels: labels,
+					code: code,
 				};
 				let func_instance =
 					FuncInstance::alloc_internal(Rc::downgrade(&instance.0), signature, func_body);
@@ -420,7 +419,7 @@ impl ModuleInstance {
 
 			// This check is not only for bailing out early, but also to check the case when
 			// segment consist of 0 members.
-			if offset_val as usize + element_segment.members().len() > table_inst.current_size() as usize {
+			if offset_val as u64 + element_segment.members().len() as u64 > table_inst.current_size() as u64 {
 				return Err(
 					Error::Instantiation("elements segment does not fit".to_string())
 				);

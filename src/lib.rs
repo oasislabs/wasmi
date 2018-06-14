@@ -98,20 +98,17 @@
 
 #[cfg(test)]
 extern crate wabt;
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
+
 extern crate parity_wasm;
 extern crate byteorder;
 extern crate memory_units as memory_units_crate;
-
-#[cfg(all(not(feature = "opt-in-32bit"), target_pointer_width = "32"))]
-compile_error! {
-"32-bit targets are not supported at the moment.
-You can use 'opt-in-32bit' feature.
-See https://github.com/pepyakin/wasmi/issues/43"
-}
+extern crate nan_preserving_float;
 
 use std::fmt;
 use std::error;
-use std::collections::HashMap;
 
 /// Error type which can thrown by wasm code or by host environment.
 ///
@@ -358,6 +355,7 @@ mod imports;
 mod global;
 mod func;
 mod types;
+mod isa;
 
 #[cfg(test)]
 mod tests;
@@ -380,12 +378,11 @@ pub mod memory_units {
 
 /// Deserialized module prepared for instantiation.
 pub struct Module {
-	labels: HashMap<usize, HashMap<usize, usize>>,
+	code_map: Vec<isa::Instructions>,
 	module: parity_wasm::elements::Module,
 }
 
 impl Module {
-
 	/// Create `Module` from `parity_wasm::elements::Module`.
 	///
 	/// This function will load, validate and prepare a `parity_wasm`'s `Module`.
@@ -421,14 +418,74 @@ impl Module {
 	pub fn from_parity_wasm_module(module: parity_wasm::elements::Module) -> Result<Module, Error> {
 		use validation::{validate_module, ValidatedModule};
 		let ValidatedModule {
-			labels,
+			code_map,
 			module,
 		} = validate_module(module)?;
 
 		Ok(Module {
-			labels,
+			code_map,
 			module,
 		})
+	}
+
+	/// Fail if the module contains any floating-point operations
+	///
+	/// # Errors
+	///
+	/// Returns `Err` if provided `Module` is not valid.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # extern crate wasmi;
+	/// # extern crate wabt;
+	///
+	/// let wasm_binary: Vec<u8> =
+	///     wabt::wat2wasm(
+	///         r#"
+	///         (module
+	///          (func $add (param $lhs i32) (param $rhs i32) (result i32)
+	///                get_local $lhs
+	///                get_local $rhs
+	///                i32.add))
+	///         "#,
+	///     )
+	///     .expect("failed to parse wat");
+	///
+	/// // Load wasm binary and prepare it for instantiation.
+	/// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
+	/// assert!(module.deny_floating_point().is_ok());
+	///
+	/// let wasm_binary: Vec<u8> =
+	///     wabt::wat2wasm(
+	///         r#"
+	///         (module
+	///          (func $add (param $lhs f32) (param $rhs f32) (result f32)
+	///                get_local $lhs
+	///                get_local $rhs
+	///                f32.add))
+	///         "#,
+	///     )
+	///     .expect("failed to parse wat");
+	///
+	/// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
+	/// assert!(module.deny_floating_point().is_err());
+	///
+	/// let wasm_binary: Vec<u8> =
+	///     wabt::wat2wasm(
+	///         r#"
+	///         (module
+	///          (func $add (param $lhs f32) (param $rhs f32) (result f32)
+	///                get_local $lhs))
+	///         "#,
+	///     )
+	///     .expect("failed to parse wat");
+	///
+	/// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
+	/// assert!(module.deny_floating_point().is_err());
+	/// ```
+	pub fn deny_floating_point(&self) -> Result<(), Error> {
+		validation::deny_floating_point(&self.module).map_err(Into::into)
 	}
 
 	/// Create `Module` from a given buffer.
@@ -467,7 +524,7 @@ impl Module {
 		&self.module
 	}
 
-	pub(crate) fn labels(&self) -> &HashMap<usize, HashMap<usize, usize>> {
-		&self.labels
+	pub(crate) fn code(&self) -> &Vec<isa::Instructions> {
+		&self.code_map
 	}
 }
