@@ -123,6 +123,7 @@ impl<'a> ImportsBuilder<'a> {
 		resolver: &'a ModuleImportResolver,
 	) -> Self {
 		self.modules.insert(name.into(), resolver);
+		info!("ImportsBuilder done");
 		self
 	}
 
@@ -255,6 +256,7 @@ impl ModuleImportResolver for ModuleRef {
 		field_name: &str,
 		_signature: &Signature,
 	) -> Result<FuncRef, Error> {
+		info!("field_name: {:?}", field_name);
 		Ok(self.export_by_name(field_name)
 			.ok_or_else(|| {
 				Error::Instantiation(format!("Export {} not found", field_name))

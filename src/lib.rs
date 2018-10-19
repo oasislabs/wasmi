@@ -102,6 +102,8 @@ extern crate wabt;
 #[macro_use]
 extern crate assert_matches;
 
+#[macro_use]
+extern crate log;
 extern crate parity_wasm;
 extern crate byteorder;
 extern crate memory_units as memory_units_crate;

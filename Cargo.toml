@@ -13,6 +13,7 @@ exclude = [ "/res/*", "/tests/*", "/fuzz/*", "/benches/*" ]
 [dependencies]
 parity-wasm = { git = "https://github.com/oasislabs/parity-wasm", branch = "ekiden" }
 byteorder = "1.0"
+log = "0.3"
 memory_units = "0.3.0"
 nan-preserving-float = "0.1.0"
 

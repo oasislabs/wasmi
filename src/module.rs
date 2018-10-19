@@ -516,6 +516,7 @@ impl ModuleInstance {
 		loaded_module: &'m Module,
 		imports: &I,
 	) -> Result<NotStartedModuleRef<'m>, Error> {
+		info!("ModuleInstance");
 		let module = loaded_module.module();
 
 		let mut extern_vals = Vec::new();
@@ -529,6 +530,7 @@ impl ModuleInstance {
 						.get(fn_ty_idx as usize)
 						.expect("Due to validation functions should have valid types");
 					let signature = Signature::from_elements(func_type);
+					info!("resolve_func {:?}", field_name);
 					let func = imports.resolve_func(module_name, field_name, &signature)?;
 					ExternVal::Func(func)
 				}
@@ -608,9 +610,11 @@ impl ModuleInstance {
 		args: &[RuntimeValue],
 		externals: &mut E,
 	) -> Result<Option<RuntimeValue>, Error> {
+		info!("invoke_export");
 		let extern_val = self.export_by_name(func_name).ok_or_else(|| {
 			Error::Function(format!("Module doesn't have export {}", func_name))
 		})?;
+		info!("found extern val");
 
 		let func_instance = match extern_val {
 			ExternVal::Func(func_instance) => func_instance,
@@ -623,7 +627,9 @@ impl ModuleInstance {
 			}
 		};
 
+		info!("checking function args");
 		check_function_args(func_instance.signature(), &args)?;
+		info!("invoking");
 		FuncInstance::invoke(&func_instance, args, externals)
 			.map_err(|t| Error::Trap(t))
 	}
@@ -679,6 +685,7 @@ impl<'a> NotStartedModuleRef<'a> {
 	///
 	/// Returns `Err` if start function traps.
 	pub fn run_start<E: Externals>(self, state: &mut E) -> Result<ModuleRef, Trap> {
+		info!("run_start");
 		if let Some(start_fn_idx) = self.loaded_module.module().start_section() {
 			let start_func = self.instance.func_by_index(start_fn_idx).expect(
 				"Due to validation start function should exists",
