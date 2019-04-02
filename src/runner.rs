@@ -130,7 +130,7 @@ impl<'a, E: Externals> Interpreter<'a, E> {
 	fn do_run_function(&mut self, function_context: &mut FunctionContext, function_body: &[Opcode], function_labels: &HashMap<usize, usize>) -> Result<RunResult, TrapKind> {
 		loop {
 			let instruction = &function_body[function_context.position];
-
+        println!("run instruction : {:?}", instruction);
 			match self.run_instruction(function_context, function_labels, instruction)? {
 				InstructionOutcome::RunNextInstruction => function_context.position += 1,
 				InstructionOutcome::Branch(mut index) => {
