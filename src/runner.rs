@@ -159,14 +159,17 @@ impl Interpreter {
 		loop {
 			let mut function_context = self.call_stack
 				.pop()
-				.expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
+				    .expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
+        println!("EXEC_INSTRRRUCTION WASM ifunction_context: {:?}", function_context);
 			let function_ref = function_context.function.clone();
+        println!("EXEC_INSTRRRUCTION WASM ifunction_ref: {:?}", function_ref);
 			let function_body = function_ref
 				.body()
 				.expect(
 					"Host functions checked in function_return below; Internal functions always have a body; qed"
 				);
 
+        println!("EXEC_INSTRRRUCTION WASM function_body: {:?}", function_body);
 			if !function_context.is_initialized() {
 				// Initialize stack frame for the function call.
 				function_context.initialize(&function_body.locals, &mut self.value_stack)?;
@@ -232,8 +235,9 @@ impl Interpreter {
 	fn do_run_function(&mut self, function_context: &mut FunctionContext, instructions: &[isa::Instruction]) -> Result<RunResult, TrapKind> {
 		loop {
 			let instruction = &instructions[function_context.position];
-
+        println!("EXEC_INSTRUCTION WASM : {:?}", instruction);
 			match self.run_instruction(function_context, instruction)? {
+
 				InstructionOutcome::RunNextInstruction => function_context.position += 1,
 				InstructionOutcome::Branch(target) => {
 					function_context.position = target.dst_pc as usize;
