@@ -189,10 +189,6 @@ impl ModuleInstance {
 		self.signatures.borrow().get(idx as usize).cloned()
 	}
 
-	pub(crate) fn exports(&self) -> HashMap<String, ExternVal> {
-		self.exports.borrow().clone()
-	}
-
 	fn push_func(&self, func: FuncRef) {
 		self.funcs.borrow_mut().push(func);
 	}
@@ -705,7 +701,7 @@ impl<'a> NotStartedModuleRef<'a> {
 	}
 
 	pub fn get_exports(&self) -> HashMap<String, ExternVal> {
-		self.instance.exports()
+		self.instance.exports.borrow().clone()
 	}
 }
 
