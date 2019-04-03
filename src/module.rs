@@ -704,7 +704,7 @@ impl<'a> NotStartedModuleRef<'a> {
 		self.instance
 	}
 
-	pub fn get_exports(self) -> HashMap<String, ExternVal> {
+	pub fn get_exports(&self) -> HashMap<String, ExternVal> {
 		self.instance.exports()
 	}
 }
