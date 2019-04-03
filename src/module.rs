@@ -703,6 +703,10 @@ impl<'a> NotStartedModuleRef<'a> {
 		}
 		self.instance
 	}
+
+	pub fn get_exports(self) -> HashMap<String, ExternVal> {
+		self.instance.exports()
+	}
 }
 
 fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance) -> RuntimeValue {
