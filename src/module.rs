@@ -700,8 +700,8 @@ impl<'a> NotStartedModuleRef<'a> {
 		self.instance
 	}
 
-	pub fn get_exports(&self) -> HashMap<String, ExternVal> {
-		self.instance.exports.borrow().clone()
+	pub fn get_exports(&self) -> &RefCell<HashMap<String, ExternVal>> {
+		&self.instance.exports
 	}
 }
 
