@@ -13,7 +13,7 @@ use nan_preserving_float::{F32, F64};
 use parity_wasm::elements::Local;
 use validation::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 use value::{
-    ArithmeticOps, ExtendInto, Float, Integer, LittleEndianConvert, RuntimeValue, TransmuteInto,
+    ArithmeticOps, ExtendInto, Float, Integer, RuntimeValue, TransmuteInto,
     TryTruncateInto, WrapInto,
 };
 use {Signature, Trap, TrapKind, ValueType};
@@ -743,7 +743,7 @@ impl Interpreter {
     ) -> Result<InstructionOutcome, TrapKind>
     where
         RuntimeValueInternal: From<T>,
-        T: LittleEndianConvert,
+        T: Copy,
     {
         let raw_address = self.value_stack.pop_as();
         let address = effective_address(offset, raw_address)?;
@@ -765,7 +765,7 @@ impl Interpreter {
     where
         T: ExtendInto<U>,
         RuntimeValueInternal: From<U>,
-        T: LittleEndianConvert,
+        T: Copy,
     {
         let raw_address = self.value_stack.pop_as();
         let address = effective_address(offset, raw_address)?;
@@ -789,7 +789,7 @@ impl Interpreter {
     ) -> Result<InstructionOutcome, TrapKind>
     where
         T: FromRuntimeValueInternal,
-        T: LittleEndianConvert,
+        T: Copy,
     {
         let stack_value = self.value_stack.pop_as::<T>();
         let raw_address = self.value_stack.pop_as::<u32>();
@@ -811,7 +811,7 @@ impl Interpreter {
     where
         T: FromRuntimeValueInternal,
         T: WrapInto<U>,
-        U: LittleEndianConvert,
+        U: Copy,
     {
         let stack_value: T = <_>::from_runtime_value_internal(self.value_stack.pop());
         let stack_value = stack_value.wrap_into();

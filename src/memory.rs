@@ -88,6 +88,23 @@ impl CheckedRegion {
     }
 }
 
+pub struct P<T> {
+    offset: u32,
+    ty: std::marker::PhantomData<T>,
+}
+
+impl<T> P<T> {
+    pub fn offset(&self) -> u32 {
+        self.offset
+    }
+}
+
+impl<T> From<P<T>> for u32 {
+    fn from(ptr: P<T>) -> u32 {
+        ptr.offset
+    }
+}
+
 impl MemoryInstance {
     /// Allocate a memory instance.
     ///
@@ -203,11 +220,18 @@ impl MemoryInstance {
     }
 
     /// Get value from memory at given offset.
-    pub fn get_value<T: LittleEndianConvert>(&self, offset: u32) -> Result<T, Error> {
+    pub fn get_value<P: Into<u32>, T: Copy>(&self, offset: P) -> Result<T, Error> {
         let mut buffer = self.buffer.borrow_mut();
-        let region =
-            self.checked_region(&mut buffer, offset as usize, ::core::mem::size_of::<T>())?;
-        Ok(T::from_little_endian(&buffer[region.range()]).expect("Slice size is checked"))
+        let region = self.checked_region(
+            &mut buffer,
+            offset.into() as usize,
+            ::core::mem::size_of::<T>(),
+        )?;
+        Ok(
+            unsafe {
+                *core::mem::transmute::<*mut u8, *mut T>(buffer[region.range()].as_mut_ptr())
+            },
+        )
     }
 
     /// Copy data from memory at given offset.
@@ -216,11 +240,31 @@ impl MemoryInstance {
     /// If you can provide a mutable slice you can use [`get_into`].
     ///
     /// [`get_into`]: #method.get_into
-    pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error> {
-        let mut buffer = self.buffer.borrow_mut();
-        let region = self.checked_region(&mut buffer, offset as usize, size)?;
+    // pub fn get(&self, offset: u32, size: usize) -> Result<Vec<u8>, Error> {
+    //     let mut buffer = self.buffer.borrow_mut();
+    //     let region = self.checked_region(&mut buffer, offset as usize, size)?;
+    //
+    //     Ok(buffer[region.range()].to_vec())
+    // }
+    pub fn get<P: Into<u32>, T: Copy>(&self, offset: P, count: usize) -> Result<&[T], Error> {
+        Ok(&*self.get_mut(offset, count)?)
+    }
 
-        Ok(buffer[region.range()].to_vec())
+    pub fn get_mut<P: Into<u32>, T: Copy>(
+        &self,
+        offset: P,
+        count: usize,
+    ) -> Result<&mut [T], Error> {
+        let mut buffer = self.buffer.borrow_mut();
+        let region = self.checked_region(
+            &mut buffer,
+            offset.into() as usize,
+            ::core::mem::size_of::<T>() * count,
+        )?;
+
+        Ok(unsafe {
+            core::slice::from_raw_parts_mut(buffer[region.range()].as_mut_ptr() as *mut T, count)
+        })
     }
 
     /// Copy data from given offset in the memory into `target` slice.
@@ -253,15 +297,17 @@ impl MemoryInstance {
     }
 
     /// Copy value in the memory at given offset.
-    pub fn set_value<T: LittleEndianConvert>(&self, offset: u32, value: T) -> Result<(), Error> {
+    pub fn set_value<P: Into<u32>, T: Copy>(&self, offset: P, value: T) -> Result<(), Error> {
         let mut buffer = self.buffer.borrow_mut();
+        let t_size = core::mem::size_of::<T>();
         let range = self
-            .checked_region(&mut buffer, offset as usize, ::core::mem::size_of::<T>())?
+            .checked_region(&mut buffer, offset.into() as usize, t_size)?
             .range();
-        if offset < self.lowest_used.get() {
-            self.lowest_used.set(offset);
+        unsafe {
+            buffer[range]
+                .as_mut_ptr()
+                .copy_from(&value as *const _ as *const u8, t_size);
         }
-        value.into_little_endian(&mut buffer[range]);
         Ok(())
     }
 
