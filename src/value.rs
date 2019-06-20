@@ -1,4 +1,5 @@
 use core::{f32, i32, i64, u32, u64};
+use core::convert::TryFrom;
 use nan_preserving_float::{F32, F64};
 use types::ValueType;
 use TrapKind;
@@ -49,6 +50,18 @@ where
     ///
     /// [`RuntimeValue`]: enum.RuntimeValue.html
     fn from_runtime_value(val: RuntimeValue) -> Option<Self>;
+}
+
+impl<T> FromRuntimeValue for crate::memory::P<T> {
+    fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
+        match val {
+            RuntimeValue::I32(val) => Some(Self {
+                offset: val as u32,
+                ty: std::marker::PhantomData,
+            }),
+            _ => None,
+        }
+    }
 }
 
 /// Convert one type to another by wrapping.
@@ -253,6 +266,47 @@ macro_rules! impl_from_runtime_value {
         }
     };
 }
+
+macro_rules! impl_wasi_flag_from_runtime_value {
+    ($expected_rt_ty: ident as $as_ty: ty, $into: ty) => {
+        impl FromRuntimeValue for $into {
+            fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
+                match val {
+                    RuntimeValue::$expected_rt_ty(val) =>
+                        <$as_ty>::try_from(val).ok().and_then(<$into>::from_bits),
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_wasi_type_from_runtime_value {
+    ($expected_rt_ty: ident as $as_ty: ty, $into: ty) => {
+        impl FromRuntimeValue for $into {
+            fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
+                match val {
+                    RuntimeValue::$expected_rt_ty(val) =>
+                        <$as_ty>::try_from(val).ok().and_then(|v| <$into>::try_from(v).ok()),
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+impl_wasi_flag_from_runtime_value!(I32 as u16, wasi_types::FdFlags);
+impl_wasi_flag_from_runtime_value!(I32 as u16, wasi_types::OpenFlags);
+impl_wasi_flag_from_runtime_value!(I32 as u16, wasi_types::SetTimeFlags);
+impl_wasi_flag_from_runtime_value!(I32 as u32, wasi_types::LookupFlags);
+impl_wasi_flag_from_runtime_value!(I64 as u64, wasi_types::Rights);
+impl_wasi_type_from_runtime_value!(I32 as u32, wasi_types::Fd);
+impl_wasi_type_from_runtime_value!(I32 as u8, wasi_types::Advice);
+impl_wasi_type_from_runtime_value!(I32 as u8, wasi_types::ClockId);
+impl_wasi_type_from_runtime_value!(I32 as u8, wasi_types::Signal);
+impl_wasi_type_from_runtime_value!(I32 as u8, wasi_types::Whence);
+impl_wasi_type_from_runtime_value!(I64 as u64, wasi_types::DirCookie);
+impl_wasi_type_from_runtime_value!(I64 as u64, wasi_types::Timestamp);
 
 /// This conversion assumes that boolean values are represented by
 /// [`I32`] type.

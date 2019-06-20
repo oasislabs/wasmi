@@ -402,7 +402,7 @@ pub use self::func::{FuncInstance, FuncInvocation, FuncRef, ResumableError};
 pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::host::{Externals, HostError, NopExternals, RuntimeArgs};
 pub use self::imports::{ImportResolver, ImportsBuilder, ModuleImportResolver};
-pub use self::memory::{MemoryInstance, MemoryRef, LINEAR_MEMORY_PAGE_SIZE};
+pub use self::memory::{MemoryInstance, MemoryRef, LINEAR_MEMORY_PAGE_SIZE, P};
 pub use self::module::{ExternVal, ModuleInstance, ModuleRef, NotStartedModuleRef};
 pub use self::table::{TableInstance, TableRef};
 pub use self::types::{GlobalDescriptor, MemoryDescriptor, Signature, TableDescriptor, ValueType};
