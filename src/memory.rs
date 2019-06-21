@@ -107,6 +107,15 @@ impl<T> From<P<T>> for u32 {
     }
 }
 
+impl<T> From<u32> for P<T> {
+    fn from(offset: u32) -> Self {
+        Self {
+            offset,
+            ty: std::marker::PhantomData
+        }
+    }
+}
+
 impl MemoryInstance {
     /// Allocate a memory instance.
     ///
@@ -279,33 +288,33 @@ impl MemoryInstance {
     }
 
     /// Copy data in the memory at given offset.
-    pub fn set<O: Into<u32>, T: Copy>(&self, offset: O, value: &[T]) -> Result<P<T>, Error> {
-        let offset = offset.into();
+    pub fn set<T: Copy, O: Into<P<T>>>(&self, ptr: O, value: &[T]) -> Result<P<T>, Error> {
+        let ptr = ptr.into();
         let mut buffer = self.buffer.borrow_mut();
         let nbytes = value.len() * std::mem::size_of::<T>();
         let range = self
-            .checked_region(&mut buffer, offset as usize, nbytes)?
+            .checked_region(&mut buffer, ptr.offset as usize, nbytes)?
             .range();
 
-        if offset < self.lowest_used.get() {
-            self.lowest_used.set(offset);
+        if ptr.offset < self.lowest_used.get() {
+            self.lowest_used.set(ptr.offset);
         }
         buffer[range].copy_from_slice(unsafe {
             std::slice::from_raw_parts(value.as_ptr() as *const u8, nbytes)
         });
 
         Ok(P {
-            offset: offset + nbytes as u32,
+            offset: ptr.offset + nbytes as u32,
             ty: std::marker::PhantomData
         })
     }
 
     /// Copy value in the memory at given offset.
-    pub fn set_value<O: Into<u32>, T: Copy>(&self, offset: O, value: T) -> Result<(), Error> {
+    pub fn set_value<T: Copy, O: Into<P<T>>>(&self, ptr: O, value: T) -> Result<(), Error> {
         let mut buffer = self.buffer.borrow_mut();
         let t_size = core::mem::size_of::<T>();
         let range = self
-            .checked_region(&mut buffer, offset.into() as usize, t_size)?
+            .checked_region(&mut buffer, ptr.into().offset as usize, t_size)?
             .range();
         unsafe {
             buffer[range]
