@@ -11,6 +11,7 @@ keywords = ["wasm", "webassembly", "bytecode", "interpreter"]
 exclude = [ "/res/*", "/tests/*", "/fuzz/*", "/benches/*" ]
 
 [dependencies]
+wasmer-runtime-core = "0.4.2"
 wasmi-validation = { version = "0.1", path = "validation", default-features = false }
 parity-wasm = { version = "0.31", default-features = false }
 hashbrown = { version = "0.1.8", optional = true }

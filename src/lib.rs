@@ -120,6 +120,7 @@ extern crate memory_units as memory_units_crate;
 extern crate parity_wasm;
 
 extern crate wasmi_validation as validation;
+extern crate wasmer_runtime_core;
 
 #[allow(unused_imports)]
 use alloc::prelude::v1::*;

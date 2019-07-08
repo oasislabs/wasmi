@@ -11,6 +11,8 @@ use memory_units::{Bytes, Pages, RoundUpTo};
 use parity_wasm::elements::ResizableLimits;
 use Error;
 
+use wasmer_runtime_core::types::{WasmExternType};
+
 /// Size of a page of [linear memory][`MemoryInstance`] - 64KiB.
 ///
 /// The size of a memory is always a integer multiple of a page size.
@@ -112,6 +114,20 @@ impl<T> From<u32> for P<T> {
         Self {
             offset,
             ty: std::marker::PhantomData
+        }
+    }
+}
+
+unsafe impl<T: Copy> WasmExternType for P<T> {
+    type Native = i32;
+
+    fn to_native(self) -> Self::Native {
+        self.offset as i32
+    }
+    fn from_native(n: Self::Native) -> Self {
+        Self {
+            offset: n as u32,
+            ty: std::marker::PhantomData,
         }
     }
 }
