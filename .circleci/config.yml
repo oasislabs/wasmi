@@ -1,0 +1,43 @@
+version: 2.1
+
+
+executors:
+  rust:
+    environment:
+      PATH: /root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /root/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib
+    docker:
+      - image: oasislabs/rust:latest
+    resource_class: large
+
+
+jobs:
+  test:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Rustfmt
+          command: cargo fmt -- --check
+      - run:
+          name: Unit test
+          command: cargo test
+
+  clippy:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Clippy
+          command: |
+            rustup component add clippy || exit 0
+            cargo clippy --all-features -- -D clippy::all
+
+
+workflows:
+  version: 2
+
+  pull_request:
+    jobs:
+      - test
+      - clippy
