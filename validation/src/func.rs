@@ -87,7 +87,7 @@ impl PartialEq<StackValueType> for ValueType {
 
 pub fn drive<T: FuncValidator>(
     module: &ModuleContext,
-    func: &Func,
+    func: Func,
     body: &FuncBody,
 ) -> Result<T::Output, Error> {
     let (params, result_ty) = module.require_function_type(func.type_ref())?;
@@ -150,11 +150,11 @@ impl<'a> FunctionValidationContext<'a> {
         return_type: BlockType,
     ) -> Result<Self, Error> {
         let mut ctx = FunctionValidationContext {
-            module: module,
-            locals: locals,
+            module,
+            locals,
             value_stack: StackWithLimit::with_limit(value_stack_limit),
             frame_stack: StackWithLimit::with_limit(frame_stack_limit),
-            return_type: return_type,
+            return_type,
         };
         push_label(
             StartedWith::Block,
@@ -248,11 +248,9 @@ impl<'a> FunctionValidationContext<'a> {
                         tee_value(&mut self.value_stack, &self.frame_stack, value_type.into())?;
                     }
 
-                    pop_label(&mut self.value_stack, &mut self.frame_stack)?;
-
-                    // We just poped the last frame. To avoid some difficulties
+                    // We now pop the last frame. To avoid some difficulties
                     // we prefer to keep this branch explicit and bail out here.
-                    ()
+                    pop_label(&mut self.value_stack, &mut self.frame_stack)?;
                 } else {
                     pop_label(&mut self.value_stack, &mut self.frame_stack)?;
 
@@ -1101,7 +1099,7 @@ fn push_value(
     value_stack: &mut StackWithLimit<StackValueType>,
     value_type: StackValueType,
 ) -> Result<(), Error> {
-    Ok(value_stack.push(value_type.into())?)
+    Ok(value_stack.push(value_type)?)
 }
 
 fn pop_value(
@@ -1131,7 +1129,7 @@ fn pop_value(
             Ok(actual_value)
         }
         StackValueType::Any => Ok(actual_value),
-        stack_value_type @ _ => Err(Error(format!(
+        stack_value_type => Err(Error(format!(
             "Expected value of type {:?} on top of stack. Got {:?}",
             expected_value_ty, stack_value_type
         ))),
@@ -1156,7 +1154,7 @@ fn push_label(
 ) -> Result<(), Error> {
     Ok(frame_stack.push(BlockFrame {
         started_with,
-        block_type: block_type,
+        block_type,
         value_stack_len: value_stack.len(),
         polymorphic_stack: false,
     })?)

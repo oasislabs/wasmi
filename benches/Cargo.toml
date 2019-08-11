@@ -9,4 +9,6 @@ assert_matches = "1.2"
 wabt = "0.6"
 
 [profile.bench]
-debug = true
+debug = false
+opt-level = 3
+lto = true

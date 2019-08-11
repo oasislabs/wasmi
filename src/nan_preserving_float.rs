@@ -3,8 +3,10 @@
 #[cfg(not(feature = "std"))]
 use libm::{F32Ext, F64Ext};
 
-use core::cmp::{Ordering, PartialEq, PartialOrd};
-use core::ops::{Add, Div, Mul, Neg, Rem, Sub};
+use core::{
+    cmp::{Ordering, PartialEq, PartialOrd},
+    ops::{Add, Div, Mul, Neg, Rem, Sub},
+};
 
 macro_rules! impl_binop {
     ($for:ident, $is:ident, $op:ident, $func_name:ident) => {

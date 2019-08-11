@@ -1,5 +1,4 @@
-use std::env;
-use std::process;
+use std::{env, process};
 
 fn main() {
     println!("cargo:rerun-if-changed=./wasm-kernel/");
@@ -16,6 +15,7 @@ fn main() {
         .arg("--release")
         .arg("--manifest-path=./wasm-kernel/Cargo.toml")
         .arg("--verbose")
+        .env("RUSTFLAGS", "-Copt-level=3 -Clto=on")
         .output()
         .expect("failed to execute `cargo`");
 

@@ -1,9 +1,7 @@
 extern crate parity_wasm;
 extern crate wasmi;
 
-use std::env;
-use std::fmt;
-use std::fs::File;
+use std::{env, fmt, fs::File};
 use wasmi::{
     Error as InterpreterError, Externals, FuncInstance, FuncRef, HostError, ImportsBuilder,
     ModuleImportResolver, ModuleInstance, ModuleRef, RuntimeArgs, RuntimeValue, Signature, Trap,
@@ -47,6 +45,7 @@ mod tictactoe {
     }
 
     impl Player {
+        #[allow(clippy::wrong_self_convention)]
         pub fn into_i32(maybe_player: Option<Player>) -> i32 {
             match maybe_player {
                 None => 0,
@@ -104,9 +103,7 @@ mod tictactoe {
 
             // Returns Some(player) if all cells contain same Player.
             let all_same = |i1: usize, i2: usize, i3: usize| -> Option<Player> {
-                if self.board[i1].is_none() {
-                    return None;
-                }
+                self.board[i1]?;
                 if self.board[i1] == self.board[i2] && self.board[i2] == self.board[i3] {
                     return self.board[i1];
                 }
@@ -221,14 +218,13 @@ fn play(
         {
             let mut runtime = Runtime {
                 player: turn_of,
-                game: game,
+                game,
             };
             let _ = instance.invoke_export("mk_turn", &[], &mut runtime)?;
         }
 
-        match game.game_result() {
-            Some(game_result) => break game_result,
-            None => {}
+        if let Some(game_result) = game.game_result() {
+            break game_result;
         }
 
         turn_of = next_turn_of;

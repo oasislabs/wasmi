@@ -1,10 +1,23 @@
 use memory_units::Pages;
 use std::fs::File;
-use {
-    Error, FuncRef, GlobalDescriptor, GlobalInstance, GlobalRef, ImportsBuilder, MemoryDescriptor,
-    MemoryInstance, MemoryRef, Module, ModuleImportResolver, ModuleInstance, NopExternals,
-    RuntimeValue, Signature, TableDescriptor, TableInstance, TableRef,
-};
+use Error;
+use FuncRef;
+use GlobalDescriptor;
+use GlobalInstance;
+use GlobalRef;
+use ImportsBuilder;
+use MemoryDescriptor;
+use MemoryInstance;
+use MemoryRef;
+use Module;
+use ModuleImportResolver;
+use ModuleInstance;
+use NopExternals;
+use RuntimeValue;
+use Signature;
+use TableDescriptor;
+use TableInstance;
+use TableRef;
 
 struct Env {
     table_base: GlobalRef,
@@ -87,7 +100,7 @@ fn load_from_file(filename: &str) -> Module {
 #[test]
 fn interpreter_inc_i32() {
     // Name of function contained in WASM file (note the leading underline)
-    const FUNCTION_NAME: &'static str = "_inc_i32";
+    const FUNCTION_NAME: &str = "_inc_i32";
     // The WASM file containing the module and function
     const WASM_FILE: &str = &"res/fixtures/inc_i32.wast";
 
@@ -113,7 +126,7 @@ fn interpreter_inc_i32() {
 #[test]
 fn interpreter_accumulate_u8() {
     // Name of function contained in WASM file (note the leading underline)
-    const FUNCTION_NAME: &'static str = "_accumulate_u8";
+    const FUNCTION_NAME: &str = "_accumulate_u8";
     // The WASM file containing the module and function
     const WASM_FILE: &str = &"res/fixtures/accumulate_u8.wast";
     // The octet sequence being accumulated
@@ -143,7 +156,7 @@ fn interpreter_accumulate_u8() {
         .expect("Failed to execute function");
 
     // For verification, repeat accumulation using native code
-    let accu = BUF.into_iter().fold(0 as i32, |a, b| a + *b as i32);
+    let accu = BUF.iter().fold(0 as i32, |a, b| a + i32::from(*b));
     let exp_retval: Option<RuntimeValue> = Some(RuntimeValue::I32(accu));
 
     // Verify calculation from WebAssembly runtime is identical to expected result

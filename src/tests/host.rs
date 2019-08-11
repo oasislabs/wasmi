@@ -1,11 +1,27 @@
 use super::parse_wat;
 use memory_units::Pages;
 use types::ValueType;
-use {
-    Error, Externals, FuncInstance, FuncRef, HostError, ImportsBuilder, MemoryDescriptor,
-    MemoryInstance, MemoryRef, ModuleImportResolver, ModuleInstance, ModuleRef, ResumableError,
-    RuntimeArgs, RuntimeValue, Signature, TableDescriptor, TableInstance, TableRef, Trap, TrapKind,
-};
+use Error;
+use Externals;
+use FuncInstance;
+use FuncRef;
+use HostError;
+use ImportsBuilder;
+use MemoryDescriptor;
+use MemoryInstance;
+use MemoryRef;
+use ModuleImportResolver;
+use ModuleInstance;
+use ModuleRef;
+use ResumableError;
+use RuntimeArgs;
+use RuntimeValue;
+use Signature;
+use TableDescriptor;
+use TableInstance;
+use TableRef;
+use Trap;
+use TrapKind;
 
 #[derive(Debug, Clone, PartialEq)]
 struct HostErrorWithCode {
@@ -128,7 +144,7 @@ impl Externals for TestHost {
                 let mut buf = [0u8; 1];
                 memory.get_into(ptr, &mut buf).unwrap();
 
-                Ok(Some(RuntimeValue::I32(buf[0] as i32)))
+                Ok(Some(RuntimeValue::I32(i32::from(buf[0]))))
             }
             RECURSE_FUNC_INDEX => {
                 let val = args
@@ -141,7 +157,7 @@ impl Externals for TestHost {
                     .expect("Function 'recurse' expects attached module instance")
                     .clone();
                 let result = instance
-                    .invoke_export("recursive", &[val.into()], self)
+                    .invoke_export("recursive", &[val], self)
                     .expect("Failed to call 'recursive'")
                     .expect("expected to be Some");
 
@@ -158,7 +174,7 @@ impl Externals for TestHost {
 
                 let result: RuntimeValue = (a - b).into();
                 self.trap_sub_result = Some(result);
-                return Err(TrapKind::Host(Box::new(HostErrorWithCode { error_code: 301 })).into());
+                Err(TrapKind::Host(Box::new(HostErrorWithCode { error_code: 301 })).into())
             }
             _ => panic!("env doesn't provide function at index {}", index),
         }
@@ -340,13 +356,10 @@ fn resume_call_host_func_type_mismatch() {
         assert!(invocation.is_resumable());
         let err = invocation.resume_execution(val, &mut env).unwrap_err();
 
-        match &err {
-            ResumableError::Trap(trap) => {
-                if let TrapKind::UnexpectedSignature = trap.kind() {
-                    return;
-                }
+        if let ResumableError::Trap(trap) = &err {
+            if let TrapKind::UnexpectedSignature = trap.kind() {
+                return;
             }
-            _ => {}
         }
 
         // If didn't return in the previous `match`...
@@ -549,7 +562,7 @@ fn defer_providing_externals() {
                     field_name
                 )));
             }
-            if signature.params() != &[ValueType::I32] || signature.return_type() != None {
+            if signature.params() != [ValueType::I32] || signature.return_type() != None {
                 return Err(Error::Instantiation(format!(
                     "Export `{}` doesnt match expected type {:?}",
                     field_name, signature

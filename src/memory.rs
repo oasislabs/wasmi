@@ -23,7 +23,6 @@ pub const LINEAR_MEMORY_PAGE_SIZE: Bytes = Bytes(65536);
 /// This reference has a reference-counting semantics.
 ///
 /// [`MemoryInstance`]: struct.MemoryInstance.html
-///
 #[derive(Clone, Debug)]
 pub struct MemoryRef(Rc<MemoryInstance>);
 
@@ -111,7 +110,7 @@ impl<T> From<u32> for P<T> {
     fn from(offset: u32) -> Self {
         Self {
             offset,
-            ty: std::marker::PhantomData
+            ty: std::marker::PhantomData,
         }
     }
 }
@@ -164,11 +163,11 @@ impl MemoryInstance {
 
         let initial_size: Bytes = initial.into();
         MemoryInstance {
-            limits: limits,
+            limits,
             buffer: RefCell::new(Vec::with_capacity(4096)),
-            initial: initial,
+            initial,
             current_size: Cell::new(initial_size.0),
-            maximum: maximum,
+            maximum,
             lowest_used: Cell::new(u32::max_value()),
         }
     }
@@ -210,15 +209,11 @@ impl MemoryInstance {
     /// To convert number of pages to number of bytes you can use the following code:
     ///
     /// ```rust
-    /// use wasmi::MemoryInstance;
-    /// use wasmi::memory_units::*;
+    /// use wasmi::{memory_units::*, MemoryInstance};
     ///
     /// let memory = MemoryInstance::alloc(Pages(1), None).unwrap();
     /// let byte_size: Bytes = memory.current_size().into();
-    /// assert_eq!(
-    ///     byte_size,
-    ///     Bytes(65536),
-    /// );
+    /// assert_eq!(byte_size, Bytes(65536),);
     /// ```
     pub fn current_size(&self) -> Pages {
         Bytes(self.current_size.get()).round_up_to()
@@ -238,11 +233,7 @@ impl MemoryInstance {
             offset.into() as usize,
             ::core::mem::size_of::<T>(),
         )?;
-        Ok(
-            unsafe {
-                *core::mem::transmute::<*mut u8, *mut T>(buffer[region.range()].as_mut_ptr())
-            },
-        )
+        Ok(unsafe { *(buffer[region.range()].as_mut_ptr() as *mut T) })
     }
 
     /// Copy data from memory at given offset.
@@ -305,7 +296,7 @@ impl MemoryInstance {
 
         Ok(P {
             offset: ptr.offset + nbytes as u32,
-            ty: std::marker::PhantomData
+            ty: std::marker::PhantomData,
         })
     }
 
@@ -337,9 +328,9 @@ impl MemoryInstance {
             return Ok(size_before_grow);
         }
         if additional > Pages(65536) {
-            return Err(Error::Memory(format!(
-                "Trying to grow memory by more than 65536 pages"
-            )));
+            return Err(Error::Memory(
+                "Trying to grow memory by more than 65536 pages".to_string(),
+            ));
         }
 
         let new_size: Pages = size_before_grow + additional;
@@ -387,10 +378,7 @@ impl MemoryInstance {
             )));
         }
 
-        Ok(CheckedRegion {
-            offset: offset,
-            size: size,
-        })
+        Ok(CheckedRegion { offset, size })
     }
 
     fn checked_region_pair<B>(
@@ -504,9 +492,9 @@ impl MemoryInstance {
             self.checked_region_pair(&mut buffer, src_offset, len, dst_offset, len)?;
 
         if read_region.intersects(&write_region) {
-            return Err(Error::Memory(format!(
-                "non-overlapping copy is used for overlapping regions"
-            )));
+            return Err(Error::Memory(
+                "non-overlapping copy is used for overlapping regions".to_string(),
+            ));
         }
 
         if dst_offset < self.lowest_used.get() as usize {
@@ -659,7 +647,7 @@ mod tests {
 
         for (index, &(initial, maybe_max, expected_ok)) in fixtures.iter().enumerate() {
             let initial: Pages = Pages(initial);
-            let maximum: Option<Pages> = maybe_max.map(|m| Pages(m));
+            let maximum: Option<Pages> = maybe_max.map(Pages);
             let result = MemoryInstance::alloc(initial, maximum);
             if result.is_ok() != expected_ok {
                 panic!(
@@ -687,7 +675,7 @@ mod tests {
     fn copy_overlaps_1() {
         let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         mem.copy(0, 4, 6).expect("Successfully copy the elements");
-        let result = mem.get(0, 10).expect("Successfully retrieve the result");
+        let result: &[u8] = mem.get(0u32, 10).expect("Successfully retrieve the result");
         assert_eq!(result, &[0, 1, 2, 3, 0, 1, 2, 3, 4, 5]);
     }
 
@@ -695,7 +683,7 @@ mod tests {
     fn copy_overlaps_2() {
         let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         mem.copy(4, 0, 6).expect("Successfully copy the elements");
-        let result = mem.get(0, 10).expect("Successfully retrieve the result");
+        let result: &[u8] = mem.get(0u32, 10).expect("Successfully retrieve the result");
         assert_eq!(result, &[4, 5, 6, 7, 8, 9, 6, 7, 8, 9]);
     }
 
@@ -704,7 +692,9 @@ mod tests {
         let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         mem.copy_nonoverlapping(0, 10, 10)
             .expect("Successfully copy the elements");
-        let result = mem.get(10, 10).expect("Successfully retrieve the result");
+        let result: &[u8] = mem
+            .get(10u32, 10)
+            .expect("Successfully retrieve the result");
         assert_eq!(result, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     }
 
@@ -737,9 +727,12 @@ mod tests {
 
         MemoryInstance::transfer(&src, 4, &dst, 0, 3).unwrap();
 
-        assert_eq!(src.get(0, 10).unwrap(), &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         assert_eq!(
-            dst.get(0, 10).unwrap(),
+            src.get::<_, u8>(0u32, 10).unwrap(),
+            &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        );
+        assert_eq!(
+            dst.get::<_, u8>(0u32, 10).unwrap(),
             &[4, 5, 6, 13, 14, 15, 16, 17, 18, 19]
         );
     }
@@ -750,7 +743,10 @@ mod tests {
 
         MemoryInstance::transfer(&src, 4, &src, 0, 3).unwrap();
 
-        assert_eq!(src.get(0, 10).unwrap(), &[4, 5, 6, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(
+            src.get::<_, u8>(0u32, 10).unwrap(),
+            &[4, 5, 6, 3, 4, 5, 6, 7, 8, 9]
+        );
     }
 
     #[test]
@@ -759,7 +755,10 @@ mod tests {
         assert!(MemoryInstance::transfer(&src, 65535, &src, 0, 3).is_err());
 
         // Check that memories content left untouched
-        assert_eq!(src.get(0, 10).unwrap(), &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(
+            src.get::<_, u8>(0u32, 10).unwrap(),
+            &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        );
     }
 
     #[test]
@@ -772,9 +771,12 @@ mod tests {
         assert!(MemoryInstance::transfer(&src, 65535, &dst, 0, 3).is_err());
 
         // Check that memories content left untouched
-        assert_eq!(src.get(0, 10).unwrap(), &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         assert_eq!(
-            dst.get(0, 10).unwrap(),
+            src.get::<_, u8>(0u32, 10).unwrap(),
+            &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        );
+        assert_eq!(
+            dst.get::<_, u8>(0u32, 10).unwrap(),
             &[10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
         );
     }
@@ -784,14 +786,16 @@ mod tests {
         let mem = create_memory(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         mem.clear(0, 0x4A, 10)
             .expect("To successfully clear the memory");
-        let result = mem.get(0, 10).expect("To successfully retrieve the result");
+        let result: &[u8] = mem
+            .get(0u32, 10)
+            .expect("To successfully retrieve the result");
         assert_eq!(result, &[0x4A; 10]);
     }
 
     #[test]
     fn get_into() {
         let mem = MemoryInstance::new(Pages(1), None);
-        mem.set(6, &[13, 17, 129])
+        mem.set(6, &[13u8, 17, 129])
             .expect("memory set should not fail");
 
         let mut data = [0u8; 2];
@@ -804,7 +808,7 @@ mod tests {
     #[test]
     fn zero_copy() {
         let mem = MemoryInstance::alloc(Pages(1), None).unwrap();
-        mem.set(100, &[0]).expect("memory set should not fail");
+        mem.set(100, &[0u8]).expect("memory set should not fail");
         mem.with_direct_access_mut(|buf| {
             assert_eq!(buf.len(), 101);
             buf[..10].copy_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);

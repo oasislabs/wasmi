@@ -40,7 +40,7 @@ where
     pub fn with_limit(limit: usize) -> Self {
         StackWithLimit {
             values: Vec::new(),
-            limit: limit,
+            limit,
         }
     }
 
