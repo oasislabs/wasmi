@@ -65,7 +65,6 @@
 //! - Load/store instructions doesn't take `align` parameter.
 //! - *.const store value in straight encoding.
 //! - Reserved immediates are ignored for `call_indirect`, `current_memory`, `grow_memory`.
-//!
 
 #[allow(unused_imports)]
 use alloc::prelude::v1::*;
@@ -84,8 +83,8 @@ pub enum Keep {
 
 impl Keep {
     /// Reutrns a number of items that should be kept on the stack.
-    pub fn count(&self) -> u32 {
-        match *self {
+    pub fn count(self) -> u32 {
+        match self {
             Keep::None => 0,
             Keep::Single => 1,
         }

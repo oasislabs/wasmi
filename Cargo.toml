@@ -41,3 +41,7 @@ core = [
 [workspace]
 members = ["validation"]
 exclude = ["benches"]
+
+[profile.release]
+opt-level = 3
+lto = true

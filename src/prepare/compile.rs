@@ -3,12 +3,15 @@ use alloc::prelude::v1::*;
 
 use parity_wasm::elements::{BlockType, FuncBody, Instruction};
 
-use validation::func::{
-    require_label, top_label, BlockFrame, FunctionValidationContext, StackValueType, StartedWith,
+use validation::{
+    func::{
+        require_label, top_label, BlockFrame, FunctionValidationContext, StackValueType,
+        StartedWith,
+    },
+    stack::StackWithLimit,
+    util::Locals,
+    Error, FuncValidator,
 };
-use validation::stack::StackWithLimit;
-use validation::util::Locals;
-use validation::{Error, FuncValidator};
 
 use isa;
 
@@ -279,7 +282,7 @@ impl Compiler {
                 context.step(instruction)?;
 
                 // These two unwraps are guaranteed to succeed by validation.
-                const REQUIRE_TARGET_PROOF: &'static str =
+                const REQUIRE_TARGET_PROOF: &str =
                     "validation step ensures that the value stack underflows;
                     validation also ensures that the depth is correct;
                     qed";
@@ -1180,7 +1183,7 @@ impl Sink {
         let dst_pc = self.pc_or_placeholder(label, || isa::Reloc::Br { pc });
         self.ins.push(isa::InstructionInternal::Br(isa::Target {
             dst_pc,
-            drop_keep: drop_keep.into(),
+            drop_keep,
         }));
     }
 
@@ -1191,7 +1194,7 @@ impl Sink {
         self.ins
             .push(isa::InstructionInternal::BrIfEqz(isa::Target {
                 dst_pc,
-                drop_keep: drop_keep.into(),
+                drop_keep,
             }));
     }
 
@@ -1202,7 +1205,7 @@ impl Sink {
         self.ins
             .push(isa::InstructionInternal::BrIfNez(isa::Target {
                 dst_pc,
-                drop_keep: drop_keep.into(),
+                drop_keep,
             }));
     }
 
@@ -1222,7 +1225,7 @@ impl Sink {
             self.ins
                 .push(isa::InstructionInternal::BrTableTarget(isa::Target {
                     dst_pc,
-                    drop_keep: drop_keep.into(),
+                    drop_keep,
                 }));
         }
     }

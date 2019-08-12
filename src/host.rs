@@ -1,6 +1,7 @@
 use core::any::TypeId;
 use value::{FromRuntimeValue, RuntimeValue};
-use {Trap, TrapKind};
+use Trap;
+use TrapKind;
 
 /// Wrapper around slice of [`RuntimeValue`] for using it
 /// as an argument list conveniently.
@@ -68,6 +69,11 @@ impl<'a> RuntimeArgs<'a> {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+
+    /// Returns true iff there are no args.
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
+    }
 }
 
 /// Trait that allows the host to return custom error.
@@ -92,7 +98,7 @@ impl<'a> RuntimeArgs<'a> {
 ///     }
 /// }
 ///
-/// impl HostError for MyError { }
+/// impl HostError for MyError {}
 ///
 /// fn failable_fn() -> Result<(), Error> {
 ///     let my_error = MyError { code: 1312 };
@@ -114,11 +120,11 @@ pub trait HostError: 'static + ::core::fmt::Display + ::core::fmt::Debug + Send 
     }
 }
 
-impl HostError {
+impl dyn HostError {
     /// Attempt to downcast this `HostError` to a concrete type by reference.
     pub fn downcast_ref<T: HostError>(&self) -> Option<&T> {
         if self.__private_get_type_id__() == TypeId::of::<T>() {
-            unsafe { Some(&*(self as *const HostError as *const T)) }
+            unsafe { Some(&*(self as *const dyn HostError as *const T)) }
         } else {
             None
         }
@@ -128,7 +134,7 @@ impl HostError {
     /// reference.
     pub fn downcast_mut<T: HostError>(&mut self) -> Option<&mut T> {
         if self.__private_get_type_id__() == TypeId::of::<T>() {
-            unsafe { Some(&mut *(self as *mut HostError as *mut T)) }
+            unsafe { Some(&mut *(self as *mut dyn HostError as *mut T)) }
         } else {
             None
         }
@@ -141,8 +147,8 @@ impl HostError {
 ///
 /// ```rust
 /// use wasmi::{
-///     Externals, RuntimeValue, RuntimeArgs, Error, ModuleImportResolver,
-///     FuncRef, ValueType, Signature, FuncInstance, Trap,
+///     Error, Externals, FuncInstance, FuncRef, ModuleImportResolver, RuntimeArgs, RuntimeValue,
+///     Signature, Trap, ValueType,
 /// };
 ///
 /// struct HostExternals {
@@ -171,11 +177,7 @@ impl HostError {
 /// }
 ///
 /// impl HostExternals {
-///     fn check_signature(
-///         &self,
-///         index: usize,
-///         signature: &Signature
-///     ) -> bool {
+///     fn check_signature(&self, index: usize, signature: &Signature) -> bool {
 ///         let (params, ret_ty): (&[ValueType], Option<ValueType>) = match index {
 ///             ADD_FUNC_INDEX => (&[ValueType::I32, ValueType::I32], Some(ValueType::I32)),
 ///             _ => return false,
@@ -185,24 +187,22 @@ impl HostError {
 /// }
 ///
 /// impl ModuleImportResolver for HostExternals {
-///     fn resolve_func(
-///         &self,
-///         field_name: &str,
-///         signature: &Signature
-///     ) -> Result<FuncRef, Error> {
+///     fn resolve_func(&self, field_name: &str, signature: &Signature) -> Result<FuncRef, Error> {
 ///         let index = match field_name {
 ///             "add" => ADD_FUNC_INDEX,
 ///             _ => {
-///                 return Err(Error::Instantiation(
-///                     format!("Export {} not found", field_name),
-///                 ))
+///                 return Err(Error::Instantiation(format!(
+///                     "Export {} not found",
+///                     field_name
+///                 )))
 ///             }
 ///         };
 ///
 ///         if !self.check_signature(index, signature) {
-///             return Err(Error::Instantiation(
-///                 format!("Export {} has a bad signature", field_name)
-///             ));
+///             return Err(Error::Instantiation(format!(
+///                 "Export {} has a bad signature",
+///                 field_name
+///             )));
 ///         }
 ///
 ///         Ok(FuncInstance::alloc_host(
@@ -252,10 +252,10 @@ mod tests {
 
     #[test]
     fn i64_invalid_arg_cast() {
-        let args: RuntimeArgs = (&[RuntimeValue::I64(90534534545322)][..]).into();
+        let args: RuntimeArgs = (&[RuntimeValue::I64(90_534_534_545_322)][..]).into();
         assert!(args.nth_checked::<i32>(0).is_err());
     }
 
     // Tests that `HostError` trait is object safe.
-    fn _host_error_is_object_safe(_: &HostError) {}
+    fn _host_error_is_object_safe(_: &dyn HostError) {}
 }

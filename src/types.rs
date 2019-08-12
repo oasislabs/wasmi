@@ -43,7 +43,7 @@ impl Signature {
     ) -> Signature {
         Signature {
             params: params.into(),
-            return_type: return_type,
+            return_type,
         }
     }
 
@@ -119,7 +119,7 @@ pub struct GlobalDescriptor {
 }
 
 impl GlobalDescriptor {
-    pub(crate) fn from_elements(global_type: &GlobalType) -> GlobalDescriptor {
+    pub(crate) fn from_elements(global_type: GlobalType) -> GlobalDescriptor {
         GlobalDescriptor {
             value_type: ValueType::from_elements(global_type.content_type()),
             mutable: global_type.is_mutable(),

@@ -1,9 +1,7 @@
 #[allow(unused_imports)]
 use alloc::prelude::v1::*;
 use alloc::rc::Rc;
-use core::cell::RefCell;
-use core::fmt;
-use core::u32;
+use core::{cell::RefCell, fmt, u32};
 use func::FuncRef;
 use module::check_limits;
 use parity_wasm::elements::ResizableLimits;
@@ -14,7 +12,6 @@ use Error;
 /// This reference has a reference-counting semantics.
 ///
 /// [`TableInstance`]: struct.TableInstance.html
-///
 #[derive(Clone, Debug)]
 pub struct TableRef(Rc<TableInstance>);
 
@@ -37,7 +34,6 @@ impl ::core::ops::Deref for TableRef {
 /// In future, a table might be extended to be able to hold not only functions but different types.
 ///
 /// [`grow`]: #method.grow
-///
 pub struct TableInstance {
     /// Table limits.
     limits: ResizableLimits,
@@ -74,7 +70,7 @@ impl TableInstance {
         check_limits(&limits)?;
         Ok(TableInstance {
             buffer: RefCell::new(vec![None; limits.initial() as usize]),
-            limits: limits,
+            limits,
         })
     }
 

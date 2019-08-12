@@ -1,8 +1,7 @@
 #[allow(unused_imports)]
 use alloc::prelude::v1::*;
 use alloc::rc::Rc;
-use core::cell::RefCell;
-use core::fmt;
+use core::{cell::RefCell, fmt};
 use Trap;
 
 #[cfg(not(feature = "std"))]
@@ -21,7 +20,12 @@ use parity_wasm::elements::{External, InitExpr, Instruction, Internal, Resizable
 use table::TableRef;
 use types::{GlobalDescriptor, MemoryDescriptor, TableDescriptor};
 use validation::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
-use {Error, MemoryInstance, Module, RuntimeValue, Signature, TableInstance};
+use Error;
+use MemoryInstance;
+use Module;
+use RuntimeValue;
+use Signature;
+use TableInstance;
 
 /// Reference to a [`ModuleInstance`].
 ///
@@ -218,7 +222,7 @@ impl ModuleInstance {
 
     /// Access all globals. This is a non-standard API so it's unlikely to be
     /// portable to other engines.
-    pub fn globals<'a>(&self) -> Ref<Vec<GlobalRef>> {
+    pub fn globals(&self) -> Ref<Vec<GlobalRef>> {
         self.globals.borrow()
     }
 
@@ -243,7 +247,7 @@ impl ModuleInstance {
                 .import_section()
                 .map(|is| is.entries())
                 .unwrap_or(&[])
-                .into_iter();
+                .iter();
             let mut extern_vals = extern_vals;
             loop {
                 // Iterate on imports and extern_vals in lockstep, a-la `Iterator:zip`.
@@ -315,9 +319,7 @@ impl ModuleInstance {
                 "Due to validation func and body counts must match"
             );
 
-            for (index, (ty, body)) in
-                Iterator::zip(funcs.into_iter(), bodies.into_iter()).enumerate()
-            {
+            for (index, (ty, body)) in Iterator::zip(funcs.iter(), bodies.iter()).enumerate() {
                 let signature = instance
                     .signature_by_index(ty.type_ref())
                     .expect("Due to validation type should exists");
@@ -326,7 +328,7 @@ impl ModuleInstance {
 				).clone();
                 let func_body = FuncBody {
                     locals: body.locals().to_vec(),
-                    code: code,
+                    code,
                 };
                 let func_instance =
                     FuncInstance::alloc_internal(Rc::downgrade(&instance.0), signature, func_body);
@@ -431,15 +433,15 @@ impl ModuleInstance {
 
             // This check is not only for bailing out early, but also to check the case when
             // segment consist of 0 members.
-            if offset_val as u64 + element_segment.members().len() as u64
-                > table_inst.current_size() as u64
+            if u64::from(offset_val) + element_segment.members().len() as u64
+                > u64::from(table_inst.current_size())
             {
                 return Err(Error::Instantiation(
                     "elements segment does not fit".to_string(),
                 ));
             }
 
-            for (j, func_idx) in element_segment.members().into_iter().enumerate() {
+            for (j, func_idx) in element_segment.members().iter().enumerate() {
                 let func = module_ref
                     .func_by_index(*func_idx)
                     .expect("Due to validation funcs from element segments should exists");
@@ -526,6 +528,7 @@ impl ModuleInstance {
     /// [`NotStartedModuleRef`]: struct.NotStartedModuleRef.html
     /// [`ImportResolver`]: trait.ImportResolver.html
     /// [`assert_no_start`]: struct.NotStartedModuleRef.html#method.assert_no_start
+    #[allow(clippy::new_ret_no_self)]
     pub fn new<'m, I: ImportResolver>(
         loaded_module: &'m Module,
         imports: &I,
@@ -559,7 +562,7 @@ impl ModuleInstance {
                     ExternVal::Memory(memory)
                 }
                 External::Global(ref global_type) => {
-                    let global_descriptor = GlobalDescriptor::from_elements(global_type);
+                    let global_descriptor = GlobalDescriptor::from_elements(*global_type);
                     let global =
                         imports.resolve_global(module_name, field_name, &global_descriptor)?;
                     ExternVal::Global(global)
@@ -610,11 +613,13 @@ impl ModuleInstance {
     /// # &ImportsBuilder::default()
     /// # ).expect("failed to instantiate wasm module").assert_no_start();
     /// assert_eq!(
-    ///     instance.invoke_export(
-    ///         "add",
-    ///         &[RuntimeValue::I32(5), RuntimeValue::I32(3)],
-    ///         &mut NopExternals,
-    ///     ).expect("failed to execute export"),
+    ///     instance
+    ///         .invoke_export(
+    ///             "add",
+    ///             &[RuntimeValue::I32(5), RuntimeValue::I32(3)],
+    ///             &mut NopExternals,
+    ///         )
+    ///         .expect("failed to execute export"),
     ///     Some(RuntimeValue::I32(8)),
     /// );
     /// # }
@@ -639,7 +644,7 @@ impl ModuleInstance {
             }
         };
 
-        FuncInstance::invoke(&func_instance, args, externals).map_err(|t| Error::Trap(t))
+        FuncInstance::invoke(&func_instance, args, externals).map_err(Error::Trap)
     }
 
     /// Find export by a name.

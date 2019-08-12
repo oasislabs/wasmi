@@ -1,5 +1,6 @@
-use core::{f32, i32, i64, u32, u64};
-use core::convert::TryFrom;
+// #![allow(clippy::float_cmp)] // doing floats "right" costs huge performance
+
+use core::{convert::TryFrom, f32, i32, i64, u32, u64};
 use nan_preserving_float::{F32, F64};
 use types::ValueType;
 use TrapKind;
@@ -196,13 +197,13 @@ impl RuntimeValue {
 
 impl From<i8> for RuntimeValue {
     fn from(val: i8) -> Self {
-        RuntimeValue::I32(val as i32)
+        RuntimeValue::I32(i32::from(val))
     }
 }
 
 impl From<i16> for RuntimeValue {
     fn from(val: i16) -> Self {
-        RuntimeValue::I32(val as i32)
+        RuntimeValue::I32(i32::from(val))
     }
 }
 
@@ -220,13 +221,13 @@ impl From<i64> for RuntimeValue {
 
 impl From<u8> for RuntimeValue {
     fn from(val: u8) -> Self {
-        RuntimeValue::I32(val as i32)
+        RuntimeValue::I32(i32::from(val))
     }
 }
 
 impl From<u16> for RuntimeValue {
     fn from(val: u16) -> Self {
-        RuntimeValue::I32(val as i32)
+        RuntimeValue::I32(i32::from(val))
     }
 }
 
@@ -272,8 +273,9 @@ macro_rules! impl_wasi_flag_from_runtime_value {
         impl FromRuntimeValue for $into {
             fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
                 match val {
-                    RuntimeValue::$expected_rt_ty(val) =>
-                        <$as_ty>::try_from(val).ok().and_then(<$into>::from_bits),
+                    RuntimeValue::$expected_rt_ty(val) => {
+                        <$as_ty>::try_from(val).ok().and_then(<$into>::from_bits)
+                    }
                     _ => None,
                 }
             }
@@ -286,8 +288,9 @@ macro_rules! impl_wasi_type_from_runtime_value {
         impl FromRuntimeValue for $into {
             fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
                 match val {
-                    RuntimeValue::$expected_rt_ty(val) =>
-                        <$as_ty>::try_from(val).ok().and_then(|v| <$into>::try_from(v).ok()),
+                    RuntimeValue::$expected_rt_ty(val) => <$as_ty>::try_from(val)
+                        .ok()
+                        .and_then(|v| <$into>::try_from(v).ok()),
                     _ => None,
                 }
             }
@@ -326,8 +329,8 @@ impl FromRuntimeValue for bool {
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for i8 {
     fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
-        let min = i8::min_value() as i32;
-        let max = i8::max_value() as i32;
+        let min = i32::from(i8::min_value());
+        let max = i32::from(i8::max_value());
         match val {
             RuntimeValue::I32(val) if min <= val && val <= max => Some(val as i8),
             _ => None,
@@ -340,8 +343,8 @@ impl FromRuntimeValue for i8 {
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for i16 {
     fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
-        let min = i16::min_value() as i32;
-        let max = i16::max_value() as i32;
+        let min = i32::from(i16::min_value());
+        let max = i32::from(i16::max_value());
         match val {
             RuntimeValue::I32(val) if min <= val && val <= max => Some(val as i16),
             _ => None,
@@ -354,8 +357,8 @@ impl FromRuntimeValue for i16 {
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for u8 {
     fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
-        let min = u8::min_value() as i32;
-        let max = u8::max_value() as i32;
+        let min = i32::from(u8::min_value());
+        let max = i32::from(u8::max_value());
         match val {
             RuntimeValue::I32(val) if min <= val && val <= max => Some(val as u8),
             _ => None,
@@ -368,8 +371,8 @@ impl FromRuntimeValue for u8 {
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for u16 {
     fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
-        let min = u16::min_value() as i32;
-        let max = u16::max_value() as i32;
+        let min = i32::from(u16::min_value());
+        let max = i32::from(u16::max_value());
         match val {
             RuntimeValue::I32(val) if min <= val && val <= max => Some(val as u16),
             _ => None,
@@ -432,7 +435,7 @@ macro_rules! impl_try_truncate_into {
 
                 // range check
                 let result = self as $into;
-                if result as $from != self.trunc() {
+                if (result as $from - self.trunc()).abs() > core::$from::EPSILON {
                     return Err(TrapKind::InvalidConversionToInt);
                 }
 
@@ -512,7 +515,7 @@ impl_extend_into!(f32, f64, F64);
 
 impl ExtendInto<F64> for F32 {
     fn extend_into(self) -> F64 {
-        (f32::from(self) as f64).into()
+        f64::from(f32::from(self)).into()
     }
 }
 
@@ -921,19 +924,22 @@ macro_rules! impl_float {
             fn round(self) -> $type {
                 call_math!(round, $fXX::from(self), $fXX, $FXXExt).into()
             }
+            /// round to nearest integer, ties to even
             fn nearest(self) -> $type {
+                use core::$fXX::EPSILON;
+
                 let round = self.round();
-                if call_math!(fract, $fXX::from(self), $fXX, $FXXExt).abs() != 0.5 {
+                if (call_math!(fract, $fXX::from(self), $fXX, $FXXExt).abs() - 0.5).abs() >= EPSILON
+                {
                     return round;
                 }
 
-                use core::ops::Rem;
-                if round.rem(2.0) == 1.0 {
-                    self.floor()
-                } else if round.rem(2.0) == -1.0 {
-                    self.ceil()
-                } else {
+                if (round % 2.0).abs() < EPSILON {
                     round
+                } else if round > 0.0 {
+                    self.floor()
+                } else {
+                    self.ceil()
                 }
             }
             fn sqrt(self) -> $type {

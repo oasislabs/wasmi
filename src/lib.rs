@@ -51,44 +51,36 @@
 //! extern crate wasmi;
 //! extern crate wabt;
 //!
-//! use wasmi::{ModuleInstance, ImportsBuilder, NopExternals, RuntimeValue};
+//! use wasmi::{ImportsBuilder, ModuleInstance, NopExternals, RuntimeValue};
 //!
 //! fn main() {
 //!     // Parse WAT (WebAssembly Text format) into wasm bytecode.
-//!     let wasm_binary: Vec<u8> =
-//!         wabt::wat2wasm(
-//!             r#"
+//!     let wasm_binary: Vec<u8> = wabt::wat2wasm(
+//!         r#"
 //!             (module
 //!                 (func (export "test") (result i32)
 //!                     i32.const 1337
 //!                 )
 //!             )
 //!             "#,
-//!         )
-//!         .expect("failed to parse wat");
+//!     )
+//!     .expect("failed to parse wat");
 //!
 //!     // Load wasm binary and prepare it for instantiation.
-//!     let module = wasmi::Module::from_buffer(&wasm_binary)
-//!         .expect("failed to load wasm");
+//!     let module = wasmi::Module::from_buffer(&wasm_binary).expect("failed to load wasm");
 //!
 //!     // Instantiate a module with empty imports and
 //!     // assert that there is no `start` function.
-//!     let instance =
-//!         ModuleInstance::new(
-//!             &module,
-//!             &ImportsBuilder::default()
-//!         )
+//!     let instance = ModuleInstance::new(&module, &ImportsBuilder::default())
 //!         .expect("failed to instantiate wasm module")
 //!         .assert_no_start();
 //!
 //!     // Finally, invoke the exported function "test" with no parameters
 //!     // and empty external function executor.
 //!     assert_eq!(
-//!         instance.invoke_export(
-//!             "test",
-//!             &[],
-//!             &mut NopExternals,
-//!         ).expect("failed to execute export"),
+//!         instance
+//!             .invoke_export("test", &[], &mut NopExternals,)
+//!             .expect("failed to execute export"),
 //!         Some(RuntimeValue::I32(1337)),
 //!     );
 //! }
@@ -238,14 +230,14 @@ pub enum TrapKind {
     /// Typically returned from an implementation of [`Externals`].
     ///
     /// [`Externals`]: trait.Externals.html
-    Host(Box<host::HostError>),
+    Host(Box<dyn host::HostError>),
 }
 
 impl TrapKind {
     /// Whether this trap is specified by the host.
     pub fn is_host(&self) -> bool {
         match self {
-            &TrapKind::Host(_) => true,
+            TrapKind::Host(_) => true,
             _ => false,
         }
     }
@@ -272,7 +264,7 @@ pub enum Error {
     /// Trap.
     Trap(Trap),
     /// Custom embedder error.
-    Host(Box<host::HostError>),
+    Host(Box<dyn host::HostError>),
 }
 
 impl Error {
@@ -284,7 +276,7 @@ impl Error {
     /// [`Host`]: enum.Error.html#variant.Host
     /// [`Trap`]: enum.Error.html#variant.Trap
     /// [`TrapKind::Host`]: enum.TrapKind.html#variant.Host
-    pub fn as_host_error(&self) -> Option<&host::HostError> {
+    pub fn as_host_error(&self) -> Option<&dyn host::HostError> {
         match *self {
             Error::Host(ref host_err) => Some(&**host_err),
             Error::Trap(ref trap) => match *trap.kind() {
@@ -398,20 +390,21 @@ mod value;
 #[cfg(test)]
 mod tests;
 
-pub use self::func::{FuncInstance, FuncInvocation, FuncRef, ResumableError};
-pub use self::global::{GlobalInstance, GlobalRef};
-pub use self::host::{Externals, HostError, NopExternals, RuntimeArgs};
-pub use self::imports::{ImportResolver, ImportsBuilder, ModuleImportResolver};
-pub use self::memory::{MemoryInstance, MemoryRef, LINEAR_MEMORY_PAGE_SIZE, P};
-pub use self::module::{ExternVal, ModuleInstance, ModuleRef, NotStartedModuleRef};
-pub use self::table::{TableInstance, TableRef};
-pub use self::types::{GlobalDescriptor, MemoryDescriptor, Signature, TableDescriptor, ValueType};
-pub use self::value::{Error as ValueError, FromRuntimeValue, LittleEndianConvert, RuntimeValue};
+pub use self::{
+    func::{FuncInstance, FuncInvocation, FuncRef, ResumableError},
+    global::{GlobalInstance, GlobalRef},
+    host::{Externals, HostError, NopExternals, RuntimeArgs},
+    imports::{ImportResolver, ImportsBuilder, ModuleImportResolver},
+    memory::{MemoryInstance, MemoryRef, LINEAR_MEMORY_PAGE_SIZE, P},
+    module::{ExternVal, ModuleInstance, ModuleRef, NotStartedModuleRef},
+    table::{TableInstance, TableRef},
+    types::{GlobalDescriptor, MemoryDescriptor, Signature, TableDescriptor, ValueType},
+    value::{Error as ValueError, FromRuntimeValue, LittleEndianConvert, RuntimeValue},
+};
 
 /// WebAssembly-specific sizes and units.
 pub mod memory_units {
-    pub use memory_units_crate::wasm32::*;
-    pub use memory_units_crate::{size_of, ByteSize, Bytes, RoundUpTo};
+    pub use memory_units_crate::{size_of, wasm32::*, ByteSize, Bytes, RoundUpTo};
 }
 
 /// Deserialized module prepared for instantiation.
@@ -435,16 +428,17 @@ impl Module {
     /// extern crate parity_wasm;
     /// extern crate wasmi;
     ///
-    /// use parity_wasm::builder;
-    /// use parity_wasm::elements;
+    /// use parity_wasm::{builder, elements};
     ///
     /// fn main() {
-    ///     let parity_module =
-    ///         builder::module()
-    ///             .function()
-    ///                 .signature().with_param(elements::ValueType::I32).build()
-    ///                 .body().build()
-    ///             .build()
+    ///     let parity_module = builder::module()
+    ///         .function()
+    ///         .signature()
+    ///         .with_param(elements::ValueType::I32)
+    ///         .build()
+    ///         .body()
+    ///         .build()
+    ///         .build()
     ///         .build();
     ///
     ///     let module = wasmi::Module::from_parity_wasm_module(parity_module)
@@ -471,46 +465,43 @@ impl Module {
     /// # extern crate wasmi;
     /// # extern crate wabt;
     ///
-    /// let wasm_binary: Vec<u8> =
-    ///     wabt::wat2wasm(
-    ///         r#"
+    /// let wasm_binary: Vec<u8> = wabt::wat2wasm(
+    ///     r#"
     ///         (module
     ///          (func $add (param $lhs i32) (param $rhs i32) (result i32)
     ///                get_local $lhs
     ///                get_local $rhs
     ///                i32.add))
     ///         "#,
-    ///     )
-    ///     .expect("failed to parse wat");
+    /// )
+    /// .expect("failed to parse wat");
     ///
     /// // Load wasm binary and prepare it for instantiation.
     /// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
     /// assert!(module.deny_floating_point().is_ok());
     ///
-    /// let wasm_binary: Vec<u8> =
-    ///     wabt::wat2wasm(
-    ///         r#"
+    /// let wasm_binary: Vec<u8> = wabt::wat2wasm(
+    ///     r#"
     ///         (module
     ///          (func $add (param $lhs f32) (param $rhs f32) (result f32)
     ///                get_local $lhs
     ///                get_local $rhs
     ///                f32.add))
     ///         "#,
-    ///     )
-    ///     .expect("failed to parse wat");
+    /// )
+    /// .expect("failed to parse wat");
     ///
     /// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
     /// assert!(module.deny_floating_point().is_err());
     ///
-    /// let wasm_binary: Vec<u8> =
-    ///     wabt::wat2wasm(
-    ///         r#"
+    /// let wasm_binary: Vec<u8> = wabt::wat2wasm(
+    ///     r#"
     ///         (module
     ///          (func $add (param $lhs f32) (param $rhs f32) (result f32)
     ///                get_local $lhs))
     ///         "#,
-    ///     )
-    ///     .expect("failed to parse wat");
+    /// )
+    /// .expect("failed to parse wat");
     ///
     /// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
     /// assert!(module.deny_floating_point().is_err());
@@ -534,13 +525,13 @@ impl Module {
     /// extern crate wasmi;
     ///
     /// fn main() {
-    ///     let module =
-    ///         wasmi::Module::from_buffer(
-    ///             // Minimal module:
-    ///             //   \0asm - magic
-    ///             //    0x01 - version (in little-endian)
-    ///             &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]
-    ///         ).expect("Failed to load minimal module");
+    ///     let module = wasmi::Module::from_buffer(
+    ///         // Minimal module:
+    ///         //   \0asm - magic
+    ///         //    0x01 - version (in little-endian)
+    ///         &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00],
+    ///     )
+    ///     .expect("Failed to load minimal module");
     ///
     ///     // Instantiate `module`, etc...
     /// }
