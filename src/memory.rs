@@ -99,6 +99,10 @@ impl<T> P<T> {
     pub fn offset(&self) -> u32 {
         self.offset
     }
+
+    pub fn is_null(&self) -> bool {
+        self.offset == 0
+    }
 }
 
 impl<T> From<P<T>> for u32 {
